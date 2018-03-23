@@ -37,77 +37,37 @@ def main(argv):
     # Fetch the data
     (train_x, train_y), (test_x, test_y) = dataset.load_data('status')
 
-    english = tf.feature_column.numeric_column(key='english')
-    undergrad = tf.feature_column.numeric_column(key='undergrad')
-    work = tf.feature_column.numeric_column(key='work')
-    gre = tf.feature_column.numeric_column(key='gre')
-    gre_buckets = tf.feature_column.bucketized_column(
-        gre, boundaries=[270, 280, 290, 300, 310, 320, 330])
-    work_buckets = tf.feature_column.bucketized_column(
-        work, boundaries=[10, 20, 30])
-    ug_buckets = tf.feature_column.bucketized_column(
-        undergrad, boundaries=[5, 7, 9])
-    english_buckets = tf.feature_column.bucketized_column(
-        english, boundaries=[4, 6, 8])
-    quant = tf.feature_column.numeric_column(key='quant')
-    verbal = tf.feature_column.numeric_column(key='verbal')
-    quant_buckets = tf.feature_column.bucketized_column(
-        quant, boundaries=[135, 140, 145, 150, 155, 160, 165])
-    verbal_buckets = tf.feature_column.bucketized_column(
-        verbal, boundaries=[135, 140, 145, 150, 155, 160, 165])
-    papers = tf.feature_column.indicator_column(
-        tf.feature_column.categorical_column_with_vocabulary_list(
-            key="papers",
-            vocabulary_list=["international", "national", "local", "none"]))
-
     # Feature columns describe how to use the input.
-    my_feature_columns = [english, undergrad, work]
-    linear_columns = [english_buckets, ug_buckets, work_buckets]
-
-    if not args.light:
-        my_feature_columns.extend([quant, verbal])
-        linear_columns.extend([quant_buckets, verbal_buckets])
-        if args.papers:
-            my_feature_columns.append(papers)
-    else:
-        my_feature_columns.append(gre)
-        linear_columns.append(gre_buckets)
+    deep_columns, linear_columns = dataset.get_features(args.light, args.papers)
 
     classifier = tf.estimator.DNNLinearCombinedClassifier(
         linear_feature_columns=linear_columns,
-        dnn_feature_columns=my_feature_columns,
+        dnn_feature_columns=deep_columns,
         dnn_hidden_units=[20, 40, 20],
         n_classes=2)
 
     # Train the Model.
     classifier.train(
-        input_fn=lambda:dataset.train_input_fn(train_x, train_y,
-                                                    args.batch_size),
+        input_fn=lambda:dataset.train_input_fn(train_x, train_y, args.batch_size),
         steps=args.train_steps)
 
     # Evaluate the model.
     eval_result = classifier.evaluate(
-        input_fn=lambda:dataset.eval_input_fn(test_x, test_y,
-                                                args.batch_size))
+        input_fn=lambda:dataset.eval_input_fn(test_x, test_y, args.batch_size))
 
     print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
 
     # Generate predictions from the model
-    if args.light:
-        predict_x = {
-            'gre': [324],
-            'english': [7.5],
-            'undergrad': [8.66],
-            'work': [28]
-        }
-    else:
-        predict_x = {
-            'quant': [162],
-            'verbal': [162],
-            'english': [7.5],
-            'undergrad': [8.66],
-            'work': [28]
-        }
+    predict_x = {
+        'gre': [324],
+        'english': [7.5],
+        'undergrad': [8.66],
+        'work': [28],
+        'season': ['Fall']
+    }
+    if not args.light:
+        predict_x['quant'] = [162]
+        predict_x['verbal'] = [162]
         if args.papers:
             predict_x['papers'] = ['None']
 
