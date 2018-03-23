@@ -70,7 +70,18 @@ class Dataset(object):
             linear_features['english_buckets'],
             linear_features['ug_buckets'],
             linear_features['work_buckets'],
-            linear_features['gre_buckets']]
+            linear_features['gre_buckets'],
+            linear_features['cross_q_v']]
+
+        if not light:
+            deep_columns.extend([
+                deep_features['quant'],
+                deep_features['verbal']])
+            linear_columns.extend([
+                linear_features['quant_buckets'],
+                linear_features['verbal_buckets']])
+            if papers:
+                deep_columns.append(deep_features['papers'])
 
         return deep_columns, linear_columns
 
